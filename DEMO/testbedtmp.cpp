@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 	//while (1)
 	{
 		//PVAseparate(argc, argv);
-		main321(argc, argv);
+		PVA(argc, argv);
 	}
 		system("pause");
 	return 0;
