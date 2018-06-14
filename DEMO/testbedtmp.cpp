@@ -30,7 +30,7 @@ static void sort(int n, const float* x, int* indices);
 static int nms(int numBoxes, float overlap, int*& pick, float*& dstcls_boxes_t, float*& dstcls_scores_t);
 int PVAInsulator(cv::Mat input, float score, HYCD_RESULT_LIST  *resultlist);
 int PVADefect(cv::Mat input, int x1, int y1, int x2, int y2, float score, HYCD_RESULT_LIST  *resultlist);
-int main321(int argc, char **argv);
+int PVA(int argc, char **argv);
 int PVAseparate(int argc, char **argv);
 int main(int argc, char **argv)
 {
@@ -168,7 +168,7 @@ int PVAseparate(int argc, char **argv)//测试用
 	return 0;
 	/**************************/
 }
-int main321(int argc, char **argv)
+int PVA(int argc, char **argv)
 {
 	float nmsthreshold = 0.3;//argv[4]
 	float score = 0.6;//argv[5]
@@ -194,12 +194,6 @@ int main321(int argc, char **argv)
 	int* dstcls_cls_t = (int*)malloc(100 * sizeof(int));//框子分类信息
 	float im_scale_x;
 	float im_scale_y;
-	//if (0 == strcmp(modelType, "M3"))
-	{
-		
-		
-	}
-	/**********************/
 	FILE* fpcsv;
 	fpcsv = fopen(savePath, "w");
 	fprintf(fpcsv, "filename,name,score,xmin,ymin,xmax,ymax\n");
@@ -227,10 +221,21 @@ int main321(int argc, char **argv)
 		lines++;
 	fseek(fp, 0L, SEEK_SET);
 	int imgnum = 0;
+	HYPVA_Detector  Insulator;
+	load_res = Insulator.InsulatorCreatNetwork("./jueyuanzi1.bin");//第三步：初始化网络模型
+	if (load_res != 0) {
+		std::cout << "model loading failed ... " << std::endl;
+		
+		return load_res;
+	}
+	HYPVA_Detector  Defect;
+	load_res = Defect.DefectCreatNetwork("./jueyuanzi_xiao_4.bin");//第三步：初始化网络模型
+	if (load_res != 0) {
+		std::cout << "model loading failed ... " << std::endl;
+		return load_res;
+	}
 	while (fgets(one_line, MAX_LINE_SIZE, fp) != NULL)
 	{
-		
-		/*********************/
 		char fname[_MAX_FNAME];
 		char ext[_MAX_EXT];
 		imgnum++;
@@ -242,15 +247,13 @@ int main321(int argc, char **argv)
 		_splitpath(one_line, NULL, NULL, fname, ext);
 		
 		printf("%d/%d %s%s\n", imgnum, lines, fname, ext);
-		/*********************/
+		
 		cv::Mat input = cv::imread(one_line);
-		//printf("%s\n",one_line);
+		
 		if (input.empty())
 		{
 			std::cout << " load  image error  !!!" << std::endl;
 			continue;
-			//system("pause");
-			//exit(-1);
 		}
 		cv::Mat scale_im;
 		scale_im = HYCD_imReszie(input, &im_scale_x, &im_scale_y);
@@ -260,16 +263,9 @@ int main321(int argc, char **argv)
 		memset(dstcls_scores_t, 0, sizeof(float) * 100);
 		memset(dstcls_boxes_t, 0, sizeof(float) * 100 * 4);
 		memset(dstcls_cls_t, 0, sizeof(int) * 100);
-		HYPVA_Detector  Insulator;
-		load_res = Insulator.InsulatorCreatNetwork("./jueyuanzi1.bin");//第三步：初始化网络模型
-		if (load_res != 0) {
-			std::cout << "model loading failed ... " << std::endl;
-			//system("pause");
-			return load_res;
-		}
+		
 		Insulator.InsulatorDetection(Insulator.PvaHandls, scale_im.data, scale_im.rows, scale_im.cols, (int)scale_im.step, im_scale_x, im_scale_y, &Num_rois, dstcls_cls_t, dstcls_boxes_t, dstcls_scores_t);
-		//printf("Num_rois=%d\n",Num_rois);
-		Insulator.ReleaseNetwork();
+		
 		/*****************************************
 		int *Insulatorpick;
 		nms(Num_rois, 0.5, Insulatorpick, dstcls_boxes_t, dstcls_scores_t);
@@ -313,11 +309,6 @@ int main321(int argc, char **argv)
 		}
 		/************************/
 		
-		/*printf("Insulatorlist.lResultNum=%d\n",Insulatorlist.lResultNum);
-		for (int i = 0; i < Insulatorlist.lResultNum; i++)
-		{
-		printf("%f\n",Insulatorlist.pResult[i].dVal);
-		}*/
 		/*******************************
 		if (Insulatorlist.lResultNum > 3)
 		{
@@ -364,13 +355,6 @@ int main321(int argc, char **argv)
 		int totalwuhuiflagS[100] = { 0 };
 		if (Insulatorlist.lResultNum == 0)
 		{
-			HYPVA_Detector  Defect;
-			load_res = Defect.DefectCreatNetwork("./jueyuanzi_xiao_4.bin");//第三步：初始化网络模型
-			if (load_res != 0) {
-				std::cout << "model loading failed ... " << std::endl;
-				//system("pause");
-				return load_res;
-			}
 			cv::Mat imageROI;
 			int x1 = 0.05*input.cols;
 			int y1 = 0.05*input.rows;
@@ -388,8 +372,7 @@ int main321(int argc, char **argv)
 			memset(dstcls_cls_t, 0, sizeof(int) * 100);
 			
 			Defect.DefectDetection(Defect.PvaHandls, scale_img.data, scale_img.rows, scale_img.cols, (int)scale_img.step, im_scale_x, im_scale_y, &Num_rois, dstcls_cls_t, dstcls_boxes_t, dstcls_scores_t);
-			Defect.ReleaseNetwork();
-			/*************/
+			
 			int *pick;
 			nms(Num_rois, nmsthreshold, pick, dstcls_boxes_t, dstcls_scores_t);
 			for (int i = 1; i<=pick[0]; i++)
@@ -429,46 +412,6 @@ int main321(int argc, char **argv)
 				}
 			}
 			free(pick);
-			/*************/
-			/**************************************
-			for (int i = 0; i <= Num_rois; i++)
-			{
-				if (dstcls_scores_t[i] > score)//画出置信度在score以上的框子
-				{
-					float x = dstcls_boxes_t[i * 4];//矩形的左上角x坐标
-					float y = dstcls_boxes_t[i * 4 + 1];//矩形的左上角y坐标
-					float height = dstcls_boxes_t[i * 4 + 3] - dstcls_boxes_t[i * 4 + 1];//矩形的长
-					float width = dstcls_boxes_t[i * 4 + 2] - dstcls_boxes_t[i * 4];//矩形的宽 
-					if ((dstcls_cls_t[i] == 2 || dstcls_cls_t[i] == 3) && dstcls_scores_t[i] < 0.84)
-						continue;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.left = x;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.top = y;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.right = x + width;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.bottom = y + height;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.left += x1;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.top += y1;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.right += x1;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].Target.bottom += y1;
-					Defectlist[0].pResult[Defectlist[0].lResultNum].dVal = dstcls_scores_t[i];
-					Defectlist[0].pResult[Defectlist[0].lResultNum].flag = dstcls_cls_t[i];
-					Defectlist[0].lResultNum++;
-					if (dstcls_cls_t[i] == 1 && zibaoflag == 0)
-						zibaoflag = 1;
-					if (dstcls_cls_t[i] == 2 && wuhuiflag == 0)
-						wuhuiflag = 1;
-					if (dstcls_cls_t[i] == 3 && totalwuhuiflag == 0)
-						totalwuhuiflag = 1;
-
-					if (dstcls_cls_t[i] == 1 && zibaoflagS[0] == 0)
-						zibaoflagS[0] = 1;
-					if (dstcls_cls_t[i] == 2 && wuhuiflagS[0] == 0)
-						wuhuiflagS[0] = 1;
-					if (dstcls_cls_t[i] == 3 && totalwuhuiflagS[0] == 0)
-						totalwuhuiflagS[0] = 1;
-				}
-
-			}
-			/**************************************/
 			imageROI.release();
 			scale_img.release();
 		}
@@ -476,13 +419,7 @@ int main321(int argc, char **argv)
 		{
 			for (int j = 0; j < Insulatorlist.lResultNum; j++)
 			{
-				HYPVA_Detector  Defect;
-				load_res = Defect.DefectCreatNetwork("./jueyuanzi_xiao_4.bin");//第三步：初始化网络模型
-				if (load_res != 0) {
-					std::cout << "model loading failed ... " << std::endl;
-					//system("pause");
-					return load_res;
-				}
+				
 				cv::Mat imageROI;
 				int width = Insulatorlist.pResult[j].Target.right - Insulatorlist.pResult[j].Target.left;
 				int height = Insulatorlist.pResult[j].Target.bottom - Insulatorlist.pResult[j].Target.top;
@@ -556,54 +493,6 @@ int main321(int argc, char **argv)
 				}
 				free(pick);
 				/****************************************/
-				/****************************************
-				for (int i = 0; i <= Num_rois; i++)
-				{
-					if (dstcls_scores_t[i] > score)//画出置信度在0.75以上的框子
-					{
-						float x = dstcls_boxes_t[i * 4];//矩形的左上角x坐标
-						float y = dstcls_boxes_t[i * 4 + 1];//矩形的左上角y坐标
-						float height = dstcls_boxes_t[i * 4 + 3] - dstcls_boxes_t[i * 4 + 1];//矩形的长
-						float width = dstcls_boxes_t[i * 4 + 2] - dstcls_boxes_t[i * 4];//矩形的宽 
-						if ((dstcls_cls_t[i] == 2 || dstcls_cls_t[i] == 3) && dstcls_scores_t[i] < 0.84)
-							continue;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.left = x;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.top = y;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.right = x + width;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.bottom = y + height;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.left += x1;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.top += y1;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.right += x1;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].Target.bottom += y1;
-						Defectlist[j].pResult[Defectlist[j].lResultNum].dVal = dstcls_scores_t[i];
-						Defectlist[j].pResult[Defectlist[j].lResultNum].flag = dstcls_cls_t[i];
-						Defectlist[j].lResultNum++;
-						if (dstcls_cls_t[i] == 1 && dstcls_cls_t[i] > 0.85 && zibaoflag!=2)
-						{
-							printf("%d\n", i);
-							printf("change\n");
-							zibaoflag = 2;
-						}
-						if (dstcls_cls_t[i] == 1 && zibaoflag == 0)
-						{
-							printf("%d\n",i);
-							printf("change\n");
-							zibaoflag = 1;
-						}
-						if (dstcls_cls_t[i] == 2 && wuhuiflag == 0)
-							wuhuiflag = 1;
-						if (dstcls_cls_t[i] == 3 && totalwuhuiflag == 0)
-							totalwuhuiflag = 1;
-
-						if (dstcls_cls_t[i] == 1 && zibaoflagS[j] == 0)
-							zibaoflagS[j] = 1;
-						if (dstcls_cls_t[i] == 2 && wuhuiflagS[j] == 0)
-							wuhuiflagS[j] = 1;
-						if (dstcls_cls_t[i] == 3 && totalwuhuiflagS[j] == 0)
-							totalwuhuiflagS[j] = 1;
-					}
-				}
-				/****************************************/
 				if (zibaoflagS[j] == 1)
 				{
 					wuhuiflagS[j] = 0;
@@ -613,7 +502,7 @@ int main321(int argc, char **argv)
 				{
 					totalwuhuiflagS[j] = 0;
 				}
-				Defect.ReleaseNetwork();
+				
 				imageROI.release();
 				scale_img.release();
 			}
@@ -776,8 +665,8 @@ int main321(int argc, char **argv)
 	free(dstcls_scores_t);
 	free(dstcls_boxes_t);
 	free(dstcls_cls_t);
-	
-	
+	Insulator.ReleaseNetwork();
+	Defect.ReleaseNetwork();
 	//system("pause");
 	return 0;
 	/**************************/
